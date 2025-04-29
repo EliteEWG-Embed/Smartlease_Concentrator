@@ -1,0 +1,132 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <time.h>
+#include <signal.h>
+#include "capture.h"
+#include "serial.h"
+#include "message.h"
+#include "db.h"  // pour insert_frame()
+
+#define DB_PATH "/database/concentrator.db"
+#define ORIENTATION_THRESHOLD 0x01
+#define SLEEP_DURATION_MICROSECONDS 1000000 // 1 seconde
+
+volatile sig_atomic_t stop = 0;
+
+void handle_sigint(int sig) {
+    stop = 1;
+}
+
+void hex_to_ascii(uint8_t *src, char *dest, int len) {
+    for (int i = 0; i < len; i++) {
+        sprintf(dest + i * 2, "%02X", src[i]);
+    }
+    dest[len * 2] = '\0';
+}
+
+int parse_and_store(uint8_t *payload, size_t payload_size) {
+    if (payload_size < 13) {
+        return -1;
+    }
+
+    char time_buffer[20];
+    time_t now = time(NULL);
+    strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d %H:%M:%S", localtime(&now));
+
+    // Vérifier entête
+    if (!(payload[0] == 0x03 && payload[1] == 0x0B)) return -1;
+
+    // ID capteur
+    char sensor_id[9];
+    snprintf(sensor_id, sizeof(sensor_id), "%02X%02X%02X%02X",
+             payload[2], payload[3], payload[4], payload[5]);
+
+    // Compteur
+    uint8_t counter = payload[6];
+    uint8_t count_value = payload[7];
+
+    // Valeur de mouvement
+    int motion = (payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11];
+
+    // Orientation
+    uint8_t orientation_raw = payload[12];
+    uint8_t orientation = (orientation_raw & ORIENTATION_THRESHOLD) > 0 ? 1 : 0;
+
+    // Payload complet en hex
+    char payload_hex[payload_size * 2 + 1];
+    hex_to_ascii(payload, payload_hex, payload_size);
+
+    return insert_frame(DB_PATH, time_buffer, sensor_id, counter, count_value, motion, orientation, payload_hex);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <serial_port>\n", argv[0]);
+        return 1;
+    }
+
+    const char *serial_port = argv[1];
+    int fd = open(serial_port, O_RDWR | O_NOCTTY | O_SYNC);
+    if (fd < 0) {
+        perror("Unable to open serial port");
+        return 1;
+    }
+
+    if (configure_serial_port(fd) != 0) {
+        perror("Serial config error");
+        close(fd);
+        return 1;
+    }
+
+    printf("Connected to gateway via %s\n", serial_port);
+
+    initialize_database(DB_PATH);
+
+    signal(SIGINT, handle_sigint);
+
+    // Init du transceiver
+    set_transceiver_mode(fd, STANDBY);
+    usleep(SLEEP_DURATION_MICROSECONDS);
+
+    uint8_t rx_register_values[] = RX_REGISTER_VALUES;
+    set_transceiver_config_register(fd, rx_register_values, sizeof(rx_register_values));
+    usleep(SLEEP_DURATION_MICROSECONDS);
+
+    set_transceiver_mode(fd, RX);
+    usleep(SLEEP_DURATION_MICROSECONDS);
+
+    start_sniffing(fd);
+    usleep(SLEEP_DURATION_MICROSECONDS);
+
+    printf("Sniffing started...\n");
+
+    while (!stop) {
+        uint16_t buffer_size = get_bytes_in_buffer(fd);
+        if (buffer_size == 0) {
+            usleep(100000);
+            continue;
+        }
+
+        uint8_t rx_buffer[buffer_size];
+        Message received_msg;
+        if (sniff_next_message(fd, rx_buffer, buffer_size, &received_msg)) {
+            printf("Frame received: ");
+            for (int i = 0; i < received_msg.payload_size; i++) {
+                printf("%02X", received_msg.payload[i]);
+            }
+            printf("\n");
+
+            parse_and_store(received_msg.payload, received_msg.payload_size);
+        }
+    }
+
+    //stop_sniffing(fd);
+    close(fd);
+
+    printf("Capture stopped. Exiting cleanly.\n");
+    return 0;
+}

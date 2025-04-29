@@ -1,0 +1,66 @@
+#include <stdio.h>
+#include <sqlite3.h>
+#include "db.h"
+
+int initialize_database(const char *db_path) {
+    sqlite3 *db;
+    char *err_msg = NULL;
+    int rc = sqlite3_open(db_path, &db);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return rc;
+    }
+
+    const char *sql_create_table = 
+        "CREATE TABLE IF NOT EXISTS Frames ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "time TEXT,"
+        "sensor_id TEXT,"
+        "counter INTEGER,"
+        "count_value INTEGER,"
+        "motion INTEGER,"
+        "orientation INTEGER,"
+        "payload TEXT"
+        ");";
+
+    rc = sqlite3_exec(db, sql_create_table, 0, 0, &err_msg);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL error during table creation: %s\n", err_msg);
+        sqlite3_free(err_msg);
+        sqlite3_close(db);
+        return rc;
+    }
+
+    sqlite3_close(db);
+    return SQLITE_OK;
+}
+
+int insert_frame(const char *db_path, const char *timestamp, const char *sensor_id, 
+                 int counter, int count_value, int motion, int orientation, const char *payload_hex) {
+    sqlite3 *db;
+    char *err_msg = NULL;
+    int rc = sqlite3_open(db_path, &db);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        return rc;
+    }
+
+    char sql[1024];
+    snprintf(sql, sizeof(sql),
+             "INSERT INTO Frames (time, sensor_id, counter, count_value, motion, orientation, payload) "
+             "VALUES ('%s', '%s', %d, %d, %d, %d, '%s');",
+             timestamp, sensor_id, counter, count_value, motion, orientation, payload_hex);
+
+    rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL error during insert: %s\n", err_msg);
+        sqlite3_free(err_msg);
+    }
+
+    sqlite3_close(db);
+    return rc;
+}
