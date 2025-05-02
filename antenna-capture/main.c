@@ -50,7 +50,12 @@ int parse_and_store(uint8_t *payload, size_t payload_size) {
     uint8_t count_value = payload[7];
 
     // Valeur de mouvement
-    int motion = (payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11];
+    int motion = payload[11];
+    int motion2 = payload[10];
+    int motion3 = payload[9];
+    int motion4 = payload[8];
+
+
 
     // Orientation
     uint8_t orientation_raw = payload[12];
@@ -60,7 +65,7 @@ int parse_and_store(uint8_t *payload, size_t payload_size) {
     char payload_hex[payload_size * 2 + 1];
     hex_to_ascii(payload, payload_hex, payload_size);
 
-    return insert_frame(DB_PATH, time_buffer, sensor_id, counter, count_value, motion, orientation, payload_hex);
+    return insert_frame(DB_PATH, time_buffer, sensor_id, counter, count_value, motion, motion2, motion3, motion4, orientation, payload_hex);
 }
 
 int main(int argc, char *argv[]) {
@@ -114,11 +119,11 @@ int main(int argc, char *argv[]) {
         uint8_t rx_buffer[buffer_size];
         Message received_msg;
         if (sniff_next_message(fd, rx_buffer, buffer_size, &received_msg)) {
-            printf("Frame received: ");
+            //printf("Frame received: ");
             for (int i = 0; i < received_msg.payload_size; i++) {
-                printf("%02X", received_msg.payload[i]);
+                //printf("%02X", received_msg.payload[i]);
             }
-            printf("\n");
+            //printf("\n");
 
             parse_and_store(received_msg.payload, received_msg.payload_size);
         }

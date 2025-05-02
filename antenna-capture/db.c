@@ -12,6 +12,7 @@ int initialize_database(const char *db_path) {
         sqlite3_close(db);
         return rc;
     }
+    sqlite3_exec(db, "PRAGMA journal_mode=WAL;", 0, 0, 0);
 
     const char *sql_create_table = 
         "CREATE TABLE IF NOT EXISTS Frames ("
@@ -21,6 +22,9 @@ int initialize_database(const char *db_path) {
         "counter INTEGER,"
         "count_value INTEGER,"
         "motion INTEGER,"
+        "motion2 INTEGER,"
+        "motion3 INTEGER,"
+        "motion4 INTEGER,"
         "orientation INTEGER,"
         "payload TEXT"
         ");";
@@ -39,7 +43,7 @@ int initialize_database(const char *db_path) {
 }
 
 int insert_frame(const char *db_path, const char *timestamp, const char *sensor_id, 
-                 int counter, int count_value, int motion, int orientation, const char *payload_hex) {
+                 int counter, int count_value, int motion, int motion2, int motion3, int motion4, int orientation, const char *payload_hex) {
     sqlite3 *db;
     char *err_msg = NULL;
     int rc = sqlite3_open(db_path, &db);
@@ -51,9 +55,9 @@ int insert_frame(const char *db_path, const char *timestamp, const char *sensor_
 
     char sql[1024];
     snprintf(sql, sizeof(sql),
-             "INSERT INTO Frames (time, sensor_id, counter, count_value, motion, orientation, payload) "
-             "VALUES ('%s', '%s', %d, %d, %d, %d, '%s');",
-             timestamp, sensor_id, counter, count_value, motion, orientation, payload_hex);
+             "INSERT INTO Frames (time, sensor_id, counter, count_value, motion, motion2, motion3, motion4, orientation, payload) "
+             "VALUES ('%s', '%s', %d, %d, %d, %d, %d, %d, %d, '%s');",
+             timestamp, sensor_id, counter, count_value, motion, motion2, motion3, motion4, orientation, payload_hex);
 
     rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
     if (rc != SQLITE_OK) {

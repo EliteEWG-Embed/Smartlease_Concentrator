@@ -1,0 +1,31 @@
+version: "2.1"
+
+volumes:
+  shared-database:
+
+services:
+
+  antenna-capture:
+    build:
+      context: ./antenna-capture
+    container_name: antenna-capture
+    restart: always
+    privileged: true
+    network_mode: host
+    devices:
+      - "/dev/ttyACM0:/dev/ttyACM0"
+    volumes:
+      - shared-database:/database
+
+  azure-uploader:
+    build:
+      context: ./smartlease-uploader
+    container_name: azure-uploader
+    restart: always
+    network_mode: host
+    depends_on:
+      - antenna-capture
+    environment:
+      - AZURE_IOT_CONNECTION_STRING=HostName=SmartLease-IoT-Hub.azure-devices.net;DeviceId=conc4;SharedAccessKey=m8aDlbwIUBRd7kLVnl9XtNPN1yH4bWTRhTOIviGzx4s=
+    volumes:
+      - shared-database:/database

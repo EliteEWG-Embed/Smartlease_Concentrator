@@ -35,7 +35,9 @@
 *.i*86
 *.x86_64
 *.hex
-
+smartlease-uploader/bin
+smartlease-uploader/obj
+smartlease-uploader/bin/*
 # Debug files
 *.dSYM/
 *.su
