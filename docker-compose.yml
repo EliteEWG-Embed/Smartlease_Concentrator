@@ -26,6 +26,20 @@ services:
     depends_on:
       - antenna-capture
     environment:
-      - AZURE_IOT_CONNECTION_STRING=HostName=SmartLease-IoT-Hub.azure-devices.net;DeviceId=conc4;SharedAccessKey=m8aDlbwIUBRd7kLVnl9XtNPN1yH4bWTRhTOIviGzx4s=
+      - AZURE_IOT_CONNECTION_STRING=HostName=SmartLease-IoT-Hub.azure-devices.net;DeviceId=LakeHotelGeneva;SharedAccessKey=edtAAuZsIp+++UJzgrqu8j/F91vsB0BZL0SrLJCf9K8=
     volumes:
       - shared-database:/database
+  db-viewer:
+    build: ./db-viewer
+    container_name: db-viewer
+    restart: always
+    network_mode: host
+    depends_on:
+      - antenna-capture
+      - azure-uploader
+    ports:
+      - "80"
+    volumes:
+      - shared-database:/database
+    labels:
+      io.balena.features.supervisor-api: '1'

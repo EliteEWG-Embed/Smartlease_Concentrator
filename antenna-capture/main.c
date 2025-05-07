@@ -46,26 +46,25 @@ int parse_and_store(uint8_t *payload, size_t payload_size) {
              payload[2], payload[3], payload[4], payload[5]);
 
     // Compteur
-    uint8_t counter = payload[6];
-    uint8_t count_value = payload[7];
+    uint8_t counter = payload[6] & !0x28;
 
     // Valeur de mouvement
-    int motion = payload[11];
-    int motion2 = payload[10];
-    int motion3 = payload[9];
-    int motion4 = payload[8];
+    int motion = payload[10];
+    int motion2 = payload[9];
+    int motion3 = payload[8];
+    int motion4 = payload[7];
 
 
 
     // Orientation
-    uint8_t orientation_raw = payload[12];
+    uint8_t orientation_raw = payload[11];
     uint8_t orientation = (orientation_raw & ORIENTATION_THRESHOLD) > 0 ? 1 : 0;
 
     // Payload complet en hex
     char payload_hex[payload_size * 2 + 1];
     hex_to_ascii(payload, payload_hex, payload_size);
 
-    return insert_frame(DB_PATH, time_buffer, sensor_id, counter, count_value, motion, motion2, motion3, motion4, orientation, payload_hex);
+    return insert_frame(DB_PATH, time_buffer, sensor_id, counter, motion, motion2, motion3, motion4, orientation, payload_hex);
 }
 
 int main(int argc, char *argv[]) {
@@ -125,7 +124,37 @@ int main(int argc, char *argv[]) {
             }
             //printf("\n");
 
+            
             parse_and_store(received_msg.payload, received_msg.payload_size);
+        } else if (errno == EIO) {
+            printf("Port série déconnecté. Tentative de reconnexion...\n");
+            close(fd);
+
+            // Attente du retour de l'antenne
+            sleep(1);
+            while (find_antenna_port(serial_port, sizeof(serial_port)) != 0) {
+                printf("Antenne non détectée. Nouvelle tentative dans 1s...\n");
+                sleep(1);
+            }
+
+            fd = open(serial_port, O_RDWR | O_NOCTTY | O_SYNC);
+            if (fd < 0 || configure_serial_port(fd) != 0) {
+                perror("Reconnexion échouée");
+                continue;
+            }
+
+            printf("Antenne reconnectée sur %s\n", serial_port);
+
+            set_transceiver_mode(fd, STANDBY);
+            usleep(SLEEP_DURATION_MICROSECONDS);
+            uint8_t rx_register_values[] = RX_REGISTER_VALUES;
+            set_transceiver_config_register(fd, rx_register_values, sizeof(rx_register_values));
+            usleep(SLEEP_DURATION_MICROSECONDS);
+            set_transceiver_mode(fd, RX);
+            usleep(SLEEP_DURATION_MICROSECONDS);
+            start_sniffing(fd);
+            usleep(SLEEP_DURATION_MICROSECONDS);
+
         }
     }
 

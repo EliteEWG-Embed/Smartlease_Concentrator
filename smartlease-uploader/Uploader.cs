@@ -1,5 +1,5 @@
-using Microsoft.Data.Sqlite;
 using System.Timers;
+using Microsoft.Data.Sqlite;
 using Timer = System.Timers.Timer;
 
 namespace SmartleaseUploader;
@@ -9,9 +9,10 @@ public class Uploader
     private Timer _nightTimer;
     private Timer _bilanTimer;
     private Timer _purgeTimer;
-    private AzureClient _azureClient = new AzureClient(Environment.GetEnvironmentVariable("AZURE_IOT_CONNECTION_STRING") ?? throw new Exception("AZURE_IOT_CONNECTION_STRING missing"));
-
-
+    private AzureClient _azureClient = new AzureClient(
+        Environment.GetEnvironmentVariable("AZURE_IOT_CONNECTION_STRING")
+            ?? throw new Exception("AZURE_IOT_CONNECTION_STRING missing")
+    );
 
     public async Task StartAsync()
     {
@@ -36,7 +37,8 @@ public class Uploader
     {
         var now = DateTime.Now;
         var nextRun = new DateTime(now.Year, now.Month, now.Day, hour, minute, 0);
-        if (now > nextRun) nextRun = nextRun.AddDays(1);
+        if (now > nextRun)
+            nextRun = nextRun.AddDays(1);
         var delay = (nextRun - now).TotalMilliseconds;
 
         var timer = new Timer(delay);
@@ -57,9 +59,10 @@ public class Uploader
         using var conn = new SqliteConnection("Data Source=/database/concentrator.db");
         conn.Open();
 
-        // Adapter selon ta logique exacte de nuitée
+        // Calculate the start and end of the night period
         var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             SELECT sensor_id, COUNT(*) AS frames, SUM(motion) as total_motion
             FROM Frames
             WHERE time >= datetime('now', '-1 day', 'start of day', '+14 hours')
@@ -79,13 +82,12 @@ public class Uploader
                 timestamp = DateTime.UtcNow,
                 sensor = sensorId,
                 count = reader.GetInt32(1),
-                total = reader.GetInt32(2)
+                total = reader.GetInt32(2),
             };
 
             await _azureClient.SendJsonAsync(payload);
         }
     }
-
 
     private async Task SendSensorBilan()
     {
@@ -95,8 +97,9 @@ public class Uploader
         conn.Open();
 
         var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
-        SELECT sensor_id, MAX(counter) - MIN(counter) as apparitions
+        cmd.CommandText =
+            @"
+        SELECT sensor_id, COUNT(DISTINCT sensor_id || '-' || counter) as apparitions
         FROM Frames
         WHERE time >= datetime('now', '-45 minutes')
         GROUP BY sensor_id;
@@ -113,13 +116,12 @@ public class Uploader
                 type = "bilan",
                 timestamp = DateTime.UtcNow,
                 sensor = sensorId,
-                apparitions = apparitions
+                apparitions = apparitions,
             };
 
             await _azureClient.SendJsonAsync(payload);
         }
     }
-
 
     private async Task PurgeOldData()
     {

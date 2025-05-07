@@ -25,7 +25,7 @@ public class AzureClient
             };
 
             await _client.SendEventAsync(message);
-            Console.WriteLine($"[AZURE] Payload sent: {json}");
+            //Console.WriteLine($"[AZURE] Payload sent: {json}");
         }
         catch (Exception ex)
         {

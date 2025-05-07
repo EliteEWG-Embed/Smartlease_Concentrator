@@ -38,6 +38,7 @@
 smartlease-uploader/bin
 smartlease-uploader/obj
 smartlease-uploader/bin/*
+db-viewer/node_modules
 # Debug files
 *.dSYM/
 *.su
