@@ -27,6 +27,7 @@ services:
       - antenna-capture
     environment:
       - AZURE_IOT_CONNECTION_STRING=HostName=SLHub.azure-devices.net;DeviceId=LakeHotelGeneva;SharedAccessKey=AE0gR0KRPETaAlhwrBHEHNaaYSNXjrgBE48TWIs/gQk=
+
     volumes:
       - shared-database:/database
   db-viewer:
@@ -39,12 +40,14 @@ services:
       - azure-uploader
     ports:
       - "80"
+    environment:
+      - AZURE_RELAY_ENDPOINT=Endpoint=sb://iothub-ns-slhub-55263259-776c83d324.servicebus.windows.net/;SharedAccessKeyName=iothubowner;SharedAccessKey=syeO0n3wtmJFLYm+ihoxEOc4QwH9og1/pAIoTEG66Z0=;EntityPath=slhub
     volumes:
       - shared-database:/database
     labels:
       io.balena.features.supervisor-api: '1'
-  battery-monitor:
-    build: ./battery-monitor
-    restart: always
-    privileged: true
-    network_mode: host
+  #battery-monitor:
+    #build: ./battery-monitor
+    #restart: always
+    #privileged: true
+    #network_mode: host

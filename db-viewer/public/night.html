@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Renvoyer les nuitées</title>
+</head>
+<body>
+  <h2>Renvoyer les nuitées pour une date</h2>
+  <input type="date" id="resend-date" />
+  <button onclick="resendNights()">Renvoyer</button>
+
+  <script>
+    function resendNights() {
+      const date = document.getElementById("resend-date").value;
+      if (!date) {
+        alert("Choisissez une date !");
+        return;
+      }
+
+      fetch(`/resend-nights-to-azure?date=${date}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.sent.length === 0) {
+            alert("Aucune nuitée envoyée pour cette date.");
+          } else {
+            alert(`Nuitées envoyées (${data.sent.length}) pour ${date}.`);
+            console.log("Envoyées :", data.sent);
+            console.log("Échecs :", data.failed);
+          }
+        })
+        .catch(err => {
+          alert("Erreur lors de l'envoi des nuitées.");
+          console.error(err);
+        });
+    }
+  </script>
+</body>
+</html>

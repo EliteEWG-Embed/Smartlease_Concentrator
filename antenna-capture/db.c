@@ -12,9 +12,11 @@ int initialize_database(const char *db_path) {
         sqlite3_close(db);
         return rc;
     }
+
+    // Mode WAL pour les accès concurrents
     sqlite3_exec(db, "PRAGMA journal_mode=WAL;", 0, 0, 0);
 
-    const char *sql_create_table = 
+    const char *sql_create_frames = 
         "CREATE TABLE IF NOT EXISTS Frames ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT,"
         "time TEXT,"
@@ -28,10 +30,27 @@ int initialize_database(const char *db_path) {
         "payload TEXT"
         ");";
 
-    rc = sqlite3_exec(db, sql_create_table, 0, 0, &err_msg);
+    const char *sql_create_night = 
+        "CREATE TABLE IF NOT EXISTS Night ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "time TEXT NOT NULL,"
+        "sensor_id TEXT NOT NULL,"
+        "orientation INTEGER NOT NULL,"
+        "detected INTEGER NOT NULL,"
+        "sent INTEGER DEFAULT 0"
+        ");";
 
+    rc = sqlite3_exec(db, sql_create_frames, 0, 0, &err_msg);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "SQL error during table creation: %s\n", err_msg);
+        fprintf(stderr, "SQL error creating Frames: %s\n", err_msg);
+        sqlite3_free(err_msg);
+        sqlite3_close(db);
+        return rc;
+    }
+
+    rc = sqlite3_exec(db, sql_create_night, 0, 0, &err_msg);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL error creating Night: %s\n", err_msg);
         sqlite3_free(err_msg);
         sqlite3_close(db);
         return rc;
@@ -40,6 +59,7 @@ int initialize_database(const char *db_path) {
     sqlite3_close(db);
     return SQLITE_OK;
 }
+
 
 int insert_frame(const char *db_path, const char *timestamp, const char *sensor_id, 
                  int counter, int motion, int motion2, int motion3, int motion4, int orientation, const char *payload_hex) {

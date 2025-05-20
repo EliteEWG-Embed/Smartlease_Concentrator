@@ -49,15 +49,13 @@ int parse_and_store(uint8_t *payload, size_t payload_size) {
              payload[2], payload[3], payload[4], payload[5]);
 
     // Compteur
-    uint8_t counter = payload[6] & !0x28;
+    uint8_t counter = payload[6];
 
     // Valeur de mouvement
-    int motion = payload[10];
-    int motion2 = payload[9];
-    int motion3 = payload[8];
-    int motion4 = payload[7];
-
-
+    int motion4 = payload[10];
+    int motion3 = payload[9];
+    int motion2 = payload[8];
+    int motion = payload[7];
 
     // Orientation
     uint8_t orientation_raw = payload[11];

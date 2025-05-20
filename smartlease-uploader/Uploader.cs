@@ -1,5 +1,7 @@
 using System.Timers;
 using Microsoft.Data.Sqlite;
+using SmartleaseUploader;
+
 using Timer = System.Timers.Timer;
 
 namespace SmartleaseUploader;
@@ -54,40 +56,38 @@ public class Uploader
 
     private async Task CalculateAndSendNightReports()
     {
-        Console.WriteLine("[NIGHT] Calculating and sending night reports...");
+        Console.WriteLine("[NIGHT] Calculating and recording night reports...");
 
         using var conn = new SqliteConnection("Data Source=/database/concentrator.db");
         conn.Open();
 
-        // Calculate the start and end of the night period
         var cmd = conn.CreateCommand();
-        cmd.CommandText =
-            @"
-            SELECT sensor_id, COUNT(*) AS frames, SUM(motion) as total_motion
-            FROM Frames
-            WHERE time >= datetime('now', '-1 day', 'start of day', '+14 hours')
-              AND time <  datetime('now', 'start of day', '+10 hours')
-              AND motion > 0
-            GROUP BY sensor_id
-            HAVING frames >= 12 AND total_motion > 1000;
-        ";
+        cmd.CommandText = @"
+        SELECT sensor_id, COUNT(*) AS frames, SUM(motion) as total_motion, MAX(orientation) as orientation
+        FROM Frames
+        WHERE time >= datetime('now', '-1 day', 'start of day', '+14 hours')
+          AND time <  datetime('now', 'start of day', '+10 hours')
+          AND motion > 0
+        GROUP BY sensor_id
+        HAVING frames >= 12 AND total_motion > 1000;
+    ";
 
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             var sensorId = reader.GetString(0);
-            var payload = new
-            {
-                type = "nuitée",
-                timestamp = DateTime.UtcNow,
-                sensor = sensorId,
-                count = reader.GetInt32(1),
-                total = reader.GetInt32(2),
-            };
+            var orientation = reader.GetInt32(3);
+            var detected = 1; // Nuitée détectée
 
-            await _azureClient.SendJsonAsync(payload);
+            // Insère dans la table Night
+            NightRepository.InsertNight(sensorId, orientation, detected);
+            Console.WriteLine($"[NIGHT] Detected night for {sensorId} (orientation={orientation})");
         }
+
+        // Tente d’envoyer les nuitées en attente
+        await SendUnsentNights();
     }
+
 
     private async Task SendSensorBilan()
     {
@@ -138,6 +138,33 @@ public class Uploader
         catch (Exception ex)
         {
             Console.WriteLine($"[PURGE ERROR] {ex.Message}");
+        }
+    }
+
+    private async Task SendUnsentNights()
+    {
+        var unsent = NightRepository.GetUnsentNights();
+        foreach (var night in unsent)
+        {
+            var payload = new
+            {
+                type = "night",
+                timestamp = night.Time,
+                sensor = night.SensorId,
+                orientation = night.Orientation,
+                detected = night.Detected
+            };
+
+            try
+            {
+                await _azureClient.SendJsonAsync(payload);
+                NightRepository.MarkAsSent(night.Id);
+                Console.WriteLine($"[NIGHT SENT] ID={night.Id} Sensor={night.SensorId}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[NIGHT ERROR] {ex.Message}");
+            }
         }
     }
 }
