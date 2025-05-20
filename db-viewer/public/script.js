@@ -20,3 +20,6 @@ $(document).ready(function () {
     });
   });
 });
+document.getElementById('download-json').addEventListener('click', () => {
+  window.location.href = '/export-json';
+});

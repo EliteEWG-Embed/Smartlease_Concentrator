@@ -8,6 +8,7 @@ const DB_PATH = "/database/concentrator.db";
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// API pour le tableau
 app.get('/frames', (req, res) => {
     try {
         const db = new Database(DB_PATH, { readonly: true });
@@ -22,6 +23,24 @@ app.get('/frames', (req, res) => {
     }
 });
 
+// API pour téléchargement JSON complet
+app.get('/export-json', (req, res) => {
+    try {
+        const db = new Database(DB_PATH, { readonly: true });
+        const rows = db.prepare("SELECT * FROM Frames ORDER BY time DESC").all();
+        db.close();
+
+        const jsonData = JSON.stringify(rows, null, 2);
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename="frames.json"');
+        res.send(jsonData);
+    } catch (err) {
+        console.error("Export error:", err.message);
+        res.status(500).send("Export failed");
+    }
+});
+
+// Lancement serveur
 app.listen(PORT, () => {
     console.log(`Smartlease DB viewer running on port ${PORT}`);
 });

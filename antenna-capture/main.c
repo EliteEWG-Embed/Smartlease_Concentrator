@@ -9,7 +9,10 @@
 #include "capture.h"
 #include "serial.h"
 #include "message.h"
-#include "db.h"  // pour insert_frame()
+#include "db.h"  
+#include <errno.h>
+#include "port_scanner.h"
+
 
 #define DB_PATH "/database/concentrator.db"
 #define ORIENTATION_THRESHOLD 0x01
