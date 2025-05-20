@@ -54,3 +54,6 @@ document.getElementById("night-page").addEventListener("click", function () {
 document.getElementById("truncate-frame").addEventListener("click", function () {
   window.location.href = "/clear-frames";
 });
+document.getElementById("check-sensors-health").addEventListener("click", () => {
+  window.location.href = "/sensor-health-check";
+});
