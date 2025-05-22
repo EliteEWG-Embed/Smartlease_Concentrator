@@ -51,3 +51,11 @@ services:
     #restart: always
     #privileged: true
     #network_mode: host
+
+  watchdog:
+    build: ./watchdog
+    privileged: true
+    network_mode: host
+    restart: always
+    labels:
+      io.balena.features.supervisor-api: 1
