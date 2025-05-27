@@ -1,7 +1,10 @@
+using System.Collections.Generic;
+using System.Text;
+using System.Text.Json;
 using System.Timers;
+using Microsoft.Azure.Devices.Client;
 using Microsoft.Data.Sqlite;
 using SmartleaseUploader;
-
 using Timer = System.Timers.Timer;
 
 namespace SmartleaseUploader;
@@ -11,6 +14,7 @@ public class Uploader
     private Timer _nightTimer;
     private Timer _bilanTimer;
     private Timer _purgeTimer;
+    private static readonly TimeSpan FrameGap = TimeSpan.FromSeconds(150); // 2,5 min
     private AzureClient _azureClient = new AzureClient(
         Environment.GetEnvironmentVariable("AZURE_IOT_CONNECTION_STRING")
             ?? throw new Exception("AZURE_IOT_CONNECTION_STRING missing")
@@ -56,38 +60,66 @@ public class Uploader
 
     private async Task CalculateAndSendNightReports()
     {
-        Console.WriteLine("[NIGHT] Calculating and recording night reports...");
+        Console.WriteLine("[NIGHT] Calculating and recording night reports…");
 
-        using var conn = new SqliteConnection("Data Source=/database/concentrator.db");
-        conn.Open();
+        await using var conn = new SqliteConnection("Data Source=/database/concentrator.db");
+        await conn.OpenAsync();
 
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
-        SELECT sensor_id, COUNT(*) AS frames, SUM(motion) as total_motion, MAX(orientation) as orientation
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            @"
+        SELECT sensor_id,
+               time,
+               motion,
+               orientation
         FROM Frames
         WHERE time >= datetime('now', '-1 day', 'start of day', '+14 hours')
           AND time <  datetime('now', 'start of day', '+10 hours')
           AND motion > 0
-        GROUP BY sensor_id
-        HAVING frames >= 12 AND total_motion > 1000;
-    ";
+        ORDER BY sensor_id, time;";
 
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read())
+        var stats =
+            new Dictionary<
+                string,
+                (DateTime lastKept, int frameCount, int motionSum, int lastOrientation)
+            >();
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
         {
             var sensorId = reader.GetString(0);
-            var orientation = reader.GetInt32(3);
-            var detected = 1; // Nuitée détectée
+            var frameTime = reader.GetDateTime(1);
+            var motion = reader.GetInt32(2);
+            var orientation = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
 
-            // Insère dans la table Night
-            NightRepository.InsertNight(sensorId, orientation, detected);
-            Console.WriteLine($"[NIGHT] Detected night for {sensorId} (orientation={orientation})");
+            if (!stats.TryGetValue(sensorId, out var s))
+            {
+                stats[sensorId] = (frameTime, 1, motion, orientation);
+                continue;
+            }
+
+            if (frameTime - s.lastKept >= FrameGap)
+            {
+                stats[sensorId] = (frameTime, s.frameCount + 1, s.motionSum + motion, orientation);
+            }
         }
 
-        // Tente d’envoyer les nuitées en attente
+        foreach (var (sensorId, data) in stats)
+        {
+            var (lastTime, frames, motionSum, lastOrientation) = data;
+
+            if (frames >= 3 && motionSum > 10)
+            {
+                NightRepository.InsertNight(sensorId, lastOrientation, detected: 1);
+                Console.WriteLine(
+                    $"[NIGHT] Detected night for {sensorId} "
+                        + $"(frames={frames}, motion={motionSum}, orientation={lastOrientation})"
+                );
+            }
+        }
+
         await SendUnsentNights();
     }
-
 
     private async Task SendSensorBilan()
     {
@@ -101,11 +133,14 @@ public class Uploader
             @"
         SELECT sensor_id, COUNT(DISTINCT sensor_id || '-' || counter) as apparitions
         FROM Frames
-        WHERE time >= datetime('now', '-45 minutes')
+        WHERE time >= datetime('now', '-60 minutes')
         GROUP BY sensor_id;
     ";
 
         using var reader = cmd.ExecuteReader();
+
+        var batch = new List<object>();
+        int maxPayloadSize = 4000; 
         while (reader.Read())
         {
             var sensorId = reader.GetString(0);
@@ -119,8 +154,26 @@ public class Uploader
                 apparitions = apparitions,
             };
 
-            await _azureClient.SendJsonAsync(payload);
+            string nextPayloadSerialized = JsonSerializer.Serialize(payload);
+            int estimatedSize = Encoding.UTF8.GetByteCount(
+                JsonSerializer.Serialize(batch.Concat(new[] { payload }))
+            );
+
+            if (estimatedSize > maxPayloadSize && batch.Count > 0)
+            {
+                await _azureClient.SendJsonAsync(batch);
+                batch.Clear();
+            }
+
+            batch.Add(payload);
         }
+
+        if (batch.Count > 0)
+        {
+            await _azureClient.SendJsonAsync(batch);
+        }
+
+        Console.WriteLine($"[BILAN] Sent grouped bilans to Azure");
     }
 
     private async Task PurgeOldData()
@@ -144,6 +197,11 @@ public class Uploader
     private async Task SendUnsentNights()
     {
         var unsent = NightRepository.GetUnsentNights();
+
+        var batch = new List<object>();
+        int currentSize = 0;
+        const int maxPayloadSize = 4000; // Petite marge pour l'encodage et les métadonnées
+
         foreach (var night in unsent)
         {
             var payload = new
@@ -152,19 +210,34 @@ public class Uploader
                 timestamp = night.Time,
                 sensor = night.SensorId,
                 orientation = night.Orientation,
-                detected = night.Detected
+                detected = night.Detected,
             };
 
-            try
+            // Taille estimée après ajout
+            string jsonCandidate = JsonSerializer.Serialize(payload);
+            int sizeCandidate = Encoding.UTF8.GetByteCount(
+                JsonSerializer.Serialize(batch.Concat(new[] { payload }))
+            );
+
+            if (sizeCandidate > maxPayloadSize && batch.Count > 0)
             {
-                await _azureClient.SendJsonAsync(payload);
-                NightRepository.MarkAsSent(night.Id);
-                Console.WriteLine($"[NIGHT SENT] ID={night.Id} Sensor={night.SensorId}");
+                await _azureClient.SendJsonAsync(batch);
+                batch.Clear();
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[NIGHT ERROR] {ex.Message}");
-            }
+
+            batch.Add(payload);
+        }
+
+        if (batch.Count > 0)
+        {
+            await _azureClient.SendJsonAsync(batch);
+        }
+
+        // Marquer tous comme envoyés (à améliorer si granularité d’erreur requise)
+        foreach (var night in unsent)
+        {
+            NightRepository.MarkAsSent(night.Id);
+            Console.WriteLine($"[NIGHT SENT] ID={night.Id} Sensor={night.SensorId}");
         }
     }
 }
