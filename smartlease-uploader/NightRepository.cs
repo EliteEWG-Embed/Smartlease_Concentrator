@@ -21,7 +21,7 @@ namespace SmartleaseUploader
 
         public static void Initialize()
         {
-            using var conn = new SqliteConnection("Data Source=/database/concentrator.db");
+            using var conn = new SqliteConnection($"Data Source={DbPath}");
             conn.Open();
 
             var cmd = conn.CreateCommand();

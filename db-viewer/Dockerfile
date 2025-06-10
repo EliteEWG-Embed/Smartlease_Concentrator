@@ -7,7 +7,10 @@ RUN apt-get update && apt-get install -y \
     make \
     g++ \
     sqlite3 \
-    libsqlite3-dev
+    libsqlite3-dev \
+    tzdata
+
+ENV TZ=Europe/Paris
 
 COPY package*.json ./
 RUN npm install

@@ -1,6 +1,8 @@
 FROM alpine:latest
 
-RUN apk add --no-cache curl bash
+RUN apk add --no-cache curl bash tzdata
+
+ENV TZ=Europe/Paris
 
 COPY watchdog.sh /watchdog.sh
 RUN chmod +x /watchdog.sh

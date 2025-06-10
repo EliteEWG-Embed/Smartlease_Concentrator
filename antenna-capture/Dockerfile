@@ -8,6 +8,9 @@ RUN apk add --no-cache \
     sqlite \
     sqlite-dev
 
+ENV TZ=Europe/Paris
+RUN apk add --no-cache tzdata
+
 # Définir le répertoire de travail
 WORKDIR /app
 
