@@ -19,6 +19,26 @@ namespace SmartleaseUploader
     {
         private const string DbPath = "/database/concentrator.db";
 
+        public static void Initialize()
+        {
+            using var conn = new SqliteConnection("Data Source=/database/concentrator.db");
+            conn.Open();
+
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+        CREATE TABLE IF NOT EXISTS Night (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            time TEXT DEFAULT CURRENT_TIMESTAMP,
+            sensor_id TEXT,
+            orientation INTEGER,
+            detected INTEGER,
+            sent INTEGER DEFAULT 0
+        );
+    ";
+            cmd.ExecuteNonQuery();
+        }
+
+
         public static void InsertNight(string sensorId, int orientation, int detected)
         {
             using var conn = new SqliteConnection($"Data Source={DbPath}");

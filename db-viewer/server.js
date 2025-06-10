@@ -1,7 +1,6 @@
 const express = require('express');
 const path = require('path');
 const Database = require('better-sqlite3');
-const axios = require('axios');
 
 const app = express();
 const PORT = 80;
@@ -66,41 +65,24 @@ app.get('/resend-nights-to-azure', async (req, res) => {
   if (!date) {
     return res.status(400).send("Missing ?date=YYYY-MM-DD");
   }
+  
 
-  const db = new Database(DB_PATH, { readonly: true });
-  const rows = db.prepare(`
-    SELECT * FROM Night 
-    WHERE date(time) = date(?) 
-    ORDER BY time ASC
-  `).all(date);
-  db.close();
-
-  const endpoint = process.env.AZURE_RELAY_ENDPOINT;
-  if (!endpoint) {
-    return res.status(500).send("AZURE_RELAY_ENDPOINT not set");
-  }
-
-  const sent = [];
-  const failed = [];
-
-  for (const row of rows) {
-    const payload = {
-      type: "night",
-      timestamp: row.time,
-      sensor: row.sensor_id,
-      orientation: row.orientation,
-      detected: row.detected
-    };
-
-    try {
-      await axios.post(endpoint, payload);
-      sent.push(row.id);
-    } catch (err) {
-      failed.push({ id: row.id, error: err.message });
+  const db = new Database(DB_PATH, { readonly: false });
+  try {
+    const rows = db.prepare(`
+      UPDATE Night SET sent = 0
+      WHERE time LIKE ? AND sent = 1
+    `).run(date);
+    db.close();
+    if (rows.changes === 0) {
+      return res.status(404).send("No nights found for the specified date");
     }
+    return res.send(`Nights for ${date} marked as unsent`);
+  } catch (err) {
+    console.error("Resend error:", err.message);
+    db.close();
+    return res.status(500).send("Failed to mark nights as unsent");
   }
-
-  res.json({ sent, failed });
 });
 
 // Démarrage du serveur HTTP

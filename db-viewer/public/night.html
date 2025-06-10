@@ -19,15 +19,6 @@
 
       fetch(`/resend-nights-to-azure?date=${date}`)
         .then(res => res.json())
-        .then(data => {
-          if (data.sent.length === 0) {
-            alert("Aucune nuitée envoyée pour cette date.");
-          } else {
-            alert(`Nuitées envoyées (${data.sent.length}) pour ${date}.`);
-            console.log("Envoyées :", data.sent);
-            console.log("Échecs :", data.failed);
-          }
-        })
         .catch(err => {
           alert("Erreur lors de l'envoi des nuitées.");
           console.error(err);

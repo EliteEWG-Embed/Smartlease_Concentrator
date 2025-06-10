@@ -16,6 +16,8 @@ services:
       - "/dev/ttyACM0:/dev/ttyACM0"
     volumes:
       - shared-database:/database
+    environment:
+      - TZ=Europe/Paris
 
   azure-uploader:
     build:
@@ -27,6 +29,7 @@ services:
       - antenna-capture
     environment:
       - AZURE_IOT_CONNECTION_STRING=HostName=SLHub.azure-devices.net;DeviceId=LakeHotelGeneva;SharedAccessKey=AE0gR0KRPETaAlhwrBHEHNaaYSNXjrgBE48TWIs/gQk=
+      - TZ=Europe/Paris
 
     volumes:
       - shared-database:/database
@@ -42,6 +45,7 @@ services:
       - "80"
     environment:
       - AZURE_RELAY_ENDPOINT=Endpoint=sb://iothub-ns-slhub-55263259-776c83d324.servicebus.windows.net/;SharedAccessKeyName=iothubowner;SharedAccessKey=syeO0n3wtmJFLYm+ihoxEOc4QwH9og1/pAIoTEG66Z0=;EntityPath=slhub
+      - TZ=Europe/Paris
     volumes:
       - shared-database:/database
     labels:
@@ -57,5 +61,7 @@ services:
     privileged: true
     network_mode: host
     restart: always
+    environment:
+      - TZ=Europe/Paris
     labels:
       io.balena.features.supervisor-api: 1

@@ -22,7 +22,9 @@ public class Uploader
 
     public async Task StartAsync()
     {
-        _nightTimer = CreateDailyTimer(08, 30, async () => await CalculateAndSendNightReports());
+        NightRepository.Initialize();
+
+        _nightTimer = CreateDailyTimer(14, 00, async () => await CalculateAndSendNightReports());
         _bilanTimer = CreateIntervalTimer(12, async () => await SendSensorBilan());
         _purgeTimer = CreateDailyTimer(3, 0, async () => await PurgeOldData());
 
@@ -73,8 +75,8 @@ public class Uploader
                motion,
                orientation
         FROM Frames
-        WHERE time >= datetime('now', '-1 day', 'start of day', '+14 hours')
-          AND time <  datetime('now', 'start of day', '+10 hours')
+        WHERE time >= datetime('now', '-1 day', 'start of day', '+12 hours')
+          AND time <  datetime('now', 'start of day', '+12 hours')
           AND motion > 0
         ORDER BY sensor_id, time;";
 
