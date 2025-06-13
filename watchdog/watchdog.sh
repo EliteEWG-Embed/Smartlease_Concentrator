@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MAX_RETRIES=1
+MAX_RETRIES=10
 DELAY=30  # seconds
 FAIL_COUNT=0
 
@@ -12,7 +12,10 @@ while true; do
   RESPONSE=$(curl -s -X GET --header "Content-Type:application/json" "$SUPERVISOR_URL")
 
   if [ "$RESPONSE" = "OK" ]; then
-    echo "[WATCHDOG] Supervisor is reachable"
+    if [ "$FAIL_COUNT" -gt 0 ]; then
+      echo "[WATCHDOG] Supervisor is reachable again"
+    fi
+    #echo "[WATCHDOG] Supervisor is reachable"
     FAIL_COUNT=0
   else
     FAIL_COUNT=$((FAIL_COUNT + 1))
@@ -23,7 +26,9 @@ while true; do
     FAIL_COUNT=$((FAIL_COUNT + 1))
     echo "[WATCHDOG] Internet is OFFLINE ($FAIL_COUNT/$MAX_RETRIES)"
   else
-    echo "[WATCHDOG] Internet is reachable"
+    if [ "$FAIL_COUNT" -gt 0 ]; then
+      echo "[WATCHDOG] Internet is reachable again"
+    fi
     FAIL_COUNT=0
   fi
 

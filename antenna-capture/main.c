@@ -41,7 +41,7 @@ int parse_and_store(uint8_t *payload, size_t payload_size) {
     strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d %H:%M:%S", localtime(&now));
 
     // Vérifier entête
-    if (!(payload[0] == 0x03 && payload[1] == 0x0B)) return -1;
+    //if (!(payload[0] == 0x03 && payload[1] == 0x0B)) return -1;
 
     // ID capteur
     char sensor_id[9];

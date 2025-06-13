@@ -24,7 +24,7 @@ public class Uploader
     {
         NightRepository.Initialize();
 
-        _nightTimer = CreateDailyTimer(14, 00, async () => await CalculateAndSendNightReports());
+        _nightTimer = CreateIntervalTimer(60, async () => await CalculateAndSendNightReports());
         _bilanTimer = CreateIntervalTimer(12, async () => await SendSensorBilan());
         _purgeTimer = CreateDailyTimer(3, 0, async () => await PurgeOldData());
 
@@ -75,8 +75,8 @@ public class Uploader
                motion,
                orientation
         FROM Frames
-        WHERE time >= datetime('now', '-1 day', 'start of day', '+12 hours')
-          AND time <  datetime('now', 'start of day', '+12 hours')
+        WHERE time >= datetime('now', '-1 day', 'start of day', '+14 hours')
+          AND time <  datetime('now', 'start of day', '+10 hours')
           AND motion > 0
         ORDER BY sensor_id, time;";
 
@@ -110,13 +110,9 @@ public class Uploader
         {
             var (lastTime, frames, motionSum, lastOrientation) = data;
 
-            if (frames >= 3 && motionSum > 10)
+            if (frames >= 12 && motionSum > 1000)
             {
                 NightRepository.InsertNight(sensorId, lastOrientation, detected: 1);
-                Console.WriteLine(
-                    $"[NIGHT] Detected night for {sensorId} "
-                        + $"(frames={frames}, motion={motionSum}, orientation={lastOrientation})"
-                );
             }
         }
 
@@ -142,7 +138,7 @@ public class Uploader
         using var reader = cmd.ExecuteReader();
 
         var batch = new List<object>();
-        int maxPayloadSize = 4000; 
+        int maxPayloadSize = 4000;
         while (reader.Read())
         {
             var sensorId = reader.GetString(0);
@@ -202,7 +198,7 @@ public class Uploader
 
         var batch = new List<object>();
         int currentSize = 0;
-        const int maxPayloadSize = 4000; // Petite marge pour l'encodage et les métadonnées
+        const int maxPayloadSize = 4000;
 
         foreach (var night in unsent)
         {
@@ -215,7 +211,7 @@ public class Uploader
                 detected = night.Detected,
             };
 
-            // Taille estimée après ajout
+            // Estimated size of the new payload
             string jsonCandidate = JsonSerializer.Serialize(payload);
             int sizeCandidate = Encoding.UTF8.GetByteCount(
                 JsonSerializer.Serialize(batch.Concat(new[] { payload }))
@@ -235,11 +231,10 @@ public class Uploader
             await _azureClient.SendJsonAsync(batch);
         }
 
-        // Marquer tous comme envoyés (à améliorer si granularité d’erreur requise)
         foreach (var night in unsent)
         {
             NightRepository.MarkAsSent(night.Id);
-            Console.WriteLine($"[NIGHT SENT] ID={night.Id} Sensor={night.SensorId}");
+            //Console.WriteLine($"[NIGHT SENT] ID={night.Id} Sensor={night.SensorId}");
         }
     }
 }
