@@ -45,6 +45,30 @@ $(document).ready(function () {
     });
   });
 });
+
+$(document).ready(function () {
+  $.getJSON("/nights", function (data) {
+    const tableData = data.map((row) => [
+      row.time,
+      convertSensorName(row.sensor_id),
+      row.orientation,
+      row.detected ? "Oui" : "Non",
+      row.sent ? "Oui" : "Non",
+    ]);
+    $("#nights-table").DataTable({
+      data: tableData,
+      columns: [
+        { title: "Heure" },
+        { title: "ID Capteur" },
+        { title: "Orientation" },
+        { title: "Détecté" },
+        { title: "Envoyé" },
+      ],
+    });
+  });
+});
+
+
 document.getElementById("download-json").addEventListener("click", () => {
   window.location.href = "/export-json";
 });

@@ -71,7 +71,7 @@ app.get('/resend-nights-to-azure', async (req, res) => {
   try {
     const rows = db.prepare(`
       UPDATE Night SET sent = 0
-      WHERE time LIKE ? AND sent = 1
+      WHERE date(time) = ?
     `).run(date);
     db.close();
     if (rows.changes === 0) {
@@ -84,6 +84,21 @@ app.get('/resend-nights-to-azure', async (req, res) => {
     return res.status(500).send("Failed to mark nights as unsent");
   }
 });
+
+app.get('/nights', (req, res) => {
+  try {
+    const db = new Database(DB_PATH, { readonly: true });
+    const rows = db
+      .prepare("SELECT id, time, sensor_id, orientation, detected, sent FROM Night ORDER BY time DESC")
+      .all();
+    db.close();
+    res.json(rows);
+  } catch (err) {
+    console.error("Database error:", err.message);
+    res.status(500).json({ error: "Database access failed" });
+  } 
+});
+
 
 // Démarrage du serveur HTTP
 app.listen(PORT, () => {

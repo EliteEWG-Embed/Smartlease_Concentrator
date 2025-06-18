@@ -3,11 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <title>Renvoyer les nuitées</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
 </head>
 <body>
   <h2>Renvoyer les nuitées pour une date</h2>
   <input type="date" id="resend-date" />
   <button onclick="resendNights()">Renvoyer</button>
+  <!--
+  Tableau des nuitéesCREATE TABLE IF NOT EXISTS Night (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            time TEXT DEFAULT CURRENT_TIMESTAMP,
+            sensor_id TEXT,
+            orientation INTEGER,
+            detected INTEGER,
+            sent INTEGER DEFAULT 0
+            */-->
+  <table id="nights-table" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Heure</th>
+        <th>ID Capteur</th>
+        <th>Orientation</th>
+        <th>Détecté</th>
+        <th>Envoyé</th>
+      </tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
 
   <script>
     function resendNights() {
@@ -25,5 +49,8 @@
         });
     }
   </script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

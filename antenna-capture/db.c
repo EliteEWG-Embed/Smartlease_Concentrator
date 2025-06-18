@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <sqlite3.h>
+#include "logger.h"
+
 #include "db.h"
 
 int initialize_database(const char *db_path) {
