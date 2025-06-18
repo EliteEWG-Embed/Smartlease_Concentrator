@@ -12,6 +12,7 @@
 #include "db.h"  
 #include <errno.h>
 #include "port_scanner.h"
+#include "logger.h"
 
 
 #define DB_PATH "/database/concentrator.db"
@@ -69,6 +70,7 @@ int parse_and_store(uint8_t *payload, size_t payload_size) {
 }
 
 int main(int argc, char *argv[]) {
+    init_logger();
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <serial_port>\n", argv[0]);
         return 1;
@@ -77,12 +79,12 @@ int main(int argc, char *argv[]) {
     const char *serial_port = argv[1];
     int fd = open(serial_port, O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0) {
-        perror("Unable to open serial port");
+        LOG_ERROR("Unable to open serial port");
         return 1;
     }
 
     if (configure_serial_port(fd) != 0) {
-        perror("Serial config error");
+        LOG_ERROR("Serial config error");
         close(fd);
         return 1;
     }
@@ -119,7 +121,7 @@ int main(int argc, char *argv[]) {
         uint8_t rx_buffer[buffer_size];
         Message received_msg;
         if (sniff_next_message(fd, rx_buffer, buffer_size, &received_msg)) {
-            //printf("Frame received: ");
+            LOG_INFO("Frame received: ");
             for (int i = 0; i < received_msg.payload_size; i++) {
                 //printf("%02X", received_msg.payload[i]);
             }
@@ -140,7 +142,7 @@ int main(int argc, char *argv[]) {
 
             fd = open(serial_port, O_RDWR | O_NOCTTY | O_SYNC);
             if (fd < 0 || configure_serial_port(fd) != 0) {
-                perror("Reconnexion échouée");
+                LOG_ERROR("Reconnexion échouée");
                 continue;
             }
 

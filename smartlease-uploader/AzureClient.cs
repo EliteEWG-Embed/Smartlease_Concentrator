@@ -1,6 +1,7 @@
 using Microsoft.Azure.Devices.Client;
 using System.Text;
 using System.Text.Json;
+using Serilog;
 
 namespace SmartleaseUploader;
 
@@ -25,11 +26,11 @@ public class AzureClient
             };
 
             await _client.SendEventAsync(message);
-            //Console.WriteLine($"[AZURE] Payload sent: {json}");
+            Log.Information($"[AZURE] Payload sent: {json}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[AZURE ERROR] {ex.Message}. Retrying...");
+            Log.Error($"[AZURE ERROR] {ex.Message}. Retrying...");
             await Task.Delay(2000);
             try
             {
@@ -37,7 +38,7 @@ public class AzureClient
             }
             catch (Exception retryEx)
             {
-                Console.WriteLine($"[AZURE RETRY FAILED] {retryEx.Message}");
+                Log.Error($"[AZURE RETRY FAILED] {retryEx.Message}");
             }
         }
     }

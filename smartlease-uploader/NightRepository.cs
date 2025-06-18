@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using Serilog;
 
 namespace SmartleaseUploader
 {
@@ -74,9 +75,7 @@ namespace SmartleaseUploader
             insertCmd.Parameters.AddWithValue("@detected", detected);
             insertCmd.ExecuteNonQuery();
 
-            Console.WriteLine(
-                $"[NIGHT INSERT] Inserted night for sensor {sensorId} on {todayDate}"
-            );
+            Log.Information($"[NIGHT INSERT] Inserted night for sensor {sensorId} on {todayDate}");
         }
 
         public static List<NightEntry> GetUnsentNights()

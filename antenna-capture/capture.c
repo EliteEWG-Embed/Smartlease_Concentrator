@@ -1,4 +1,5 @@
 #include "capture.h"
+#include "logger.h"
 
 // sleep function
 void sleep_microseconds(long microseconds) {
@@ -41,7 +42,7 @@ void add_payload_to_fifo(uint8_t *payload, uint16_t payload_size)
     FILE *fifo = fopen(FIFO_PATH, "w");
     if (fifo == NULL)
     {
-        perror("Unable to open FIFO");
+        LOG_ERROR("Unable to open FIFO");
         return;
     }
 
@@ -66,7 +67,7 @@ void add_payload_to_fifo(uint8_t *payload, uint16_t payload_size)
     if (fprintf(fifo, "{\"time\" : \"%s\", \"len\" : %d, \"data\" : \"%s\"}\n", 
                 time_buffer, payload_length_bits, hex_payload) < 0)
     {
-        perror("Unable to write to FIFO");
+        LOG_ERROR("Unable to write to FIFO");
     }
     
     fclose(fifo);
@@ -82,7 +83,7 @@ void add_payload_to_log(uint8_t *payload, uint16_t payload_size, const char *log
     FILE *log_file = fopen(log_path, "a"); // Open in append mode
     if (log_file == NULL)
     {
-        perror("Unable to open log file");
+        LOG_ERROR("Unable to open log file");
         return;
     }
 
@@ -107,7 +108,7 @@ void add_payload_to_log(uint8_t *payload, uint16_t payload_size, const char *log
     if (fprintf(log_file, "{\"time\" : \"%s\", \"len\" : %d, \"data\" : \"%s\"}\n", 
                 time_buffer, payload_length_bits, hex_payload) < 0)
     {
-        perror("Unable to write to log file");
+        LOG_ERROR("Unable to write to log file");
     }
     
     fclose(log_file);

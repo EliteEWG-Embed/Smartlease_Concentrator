@@ -1,4 +1,6 @@
 #include "serial.h"
+#include "logger.h"
+
 
 // Function to configure the serial port
 int configure_serial_port(int fd)
@@ -6,7 +8,7 @@ int configure_serial_port(int fd)
     struct termios tty;
     if (tcgetattr(fd, &tty) != 0)
     {
-        perror("tcgetattr failed");
+        LOG_ERROR("tcgetattr failed");
         return -1;
     }
 
@@ -25,7 +27,7 @@ int configure_serial_port(int fd)
 
     if (tcsetattr(fd, TCSANOW, &tty) != 0)
     {
-        perror("tcsetattr failed");
+        LOG_ERROR("tcsetattr failed");
         return -1;
     }
 
@@ -40,7 +42,7 @@ int get_bytes_in_buffer(int fd)
     // Check how many bytes are available for reading
     if (ioctl(fd, FIONREAD, &bytes_available) == -1)
     {
-        perror("ioctl error");
+        LOG_ERROR("ioctl error");
         return -1;
     }
 

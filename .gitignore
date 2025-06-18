@@ -44,7 +44,8 @@ db-viewer/node_modules
 *.su
 *.idb
 *.pdb
-
+logs/
+*.log
 # Kernel Module Compile Results
 *.mod*
 *.cmd

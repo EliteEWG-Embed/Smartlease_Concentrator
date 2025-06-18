@@ -1,4 +1,6 @@
 #include "message.h"
+#include "logger.h"
+
 
 // Decodes a message from the buffer
 int decode_message(uint8_t *buffer, int len, Message *msg)
@@ -134,6 +136,6 @@ void send_message(int fd, MessageType msg_type, uint8_t flags, uint8_t *payload,
     int success = write(fd, encoded_msg, encoded_size);
     if (success == -1)
     {
-        perror("write failed");
+        LOG_ERROR("write failed");
     }
 }

@@ -4,6 +4,8 @@
 #include <dirent.h>
 #include <termios.h>
 #include "serial.h"
+#include "logger.h"
+
 
 int try_open_serial(const char *port_path) {
     int fd = open(port_path, O_RDWR | O_NOCTTY | O_SYNC);
@@ -23,7 +25,7 @@ int find_antenna_port(char *valid_port, size_t len) {
     struct dirent *entry;
     DIR *dp = opendir("/dev");
     if (dp == NULL) {
-        perror("opendir /dev");
+        LOG_ERROR("opendir /dev");
         return -1;
     }
 

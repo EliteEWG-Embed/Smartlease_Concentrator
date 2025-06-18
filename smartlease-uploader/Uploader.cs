@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Timers;
 using Microsoft.Azure.Devices.Client;
 using Microsoft.Data.Sqlite;
+using Serilog;
 using SmartleaseUploader;
 using Timer = System.Timers.Timer;
 
@@ -28,7 +29,7 @@ public class Uploader
         _bilanTimer = CreateIntervalTimer(12, async () => await SendSensorBilan());
         _purgeTimer = CreateDailyTimer(3, 0, async () => await PurgeOldData());
 
-        Console.WriteLine("Uploader started. Press Ctrl+C to exit.");
+        Log.Information("Uploader started. Press Ctrl+C to exit.");
         await Task.Delay(-1);
     }
 
@@ -62,7 +63,7 @@ public class Uploader
 
     private async Task CalculateAndSendNightReports()
     {
-        Console.WriteLine("[NIGHT] Calculating and recording night reports…");
+        Log.Information("[NIGHT] Calculating and recording night reports…");
 
         await using var conn = new SqliteConnection("Data Source=/database/concentrator.db");
         await conn.OpenAsync();
@@ -121,7 +122,7 @@ public class Uploader
 
     private async Task SendSensorBilan()
     {
-        Console.WriteLine("[BILAN] Sending sensor + repeater status...");
+        Log.Information("[BILAN] Sending sensor + repeater status...");
 
         using var conn = new SqliteConnection("Data Source=/database/concentrator.db");
         conn.Open();
@@ -171,12 +172,12 @@ public class Uploader
             await _azureClient.SendJsonAsync(batch);
         }
 
-        Console.WriteLine($"[BILAN] Sent grouped bilans to Azure");
+        Log.Information($"[BILAN] Sent grouped bilans to Azure");
     }
 
     private async Task PurgeOldData()
     {
-        Console.WriteLine("[PURGE] Cleaning old data...");
+        Log.Information("[PURGE] Cleaning old data...");
         try
         {
             using var conn = new SqliteConnection("Data Source=/database/concentrator.db");
@@ -184,11 +185,11 @@ public class Uploader
             var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM Frames WHERE time < datetime('now', '-15 days');";
             var rows = cmd.ExecuteNonQuery();
-            Console.WriteLine($"[PURGE] {rows} rows deleted.");
+            Log.Information($"[PURGE] {rows} rows deleted.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PURGE ERROR] {ex.Message}");
+            Log.Error($"[PURGE ERROR] {ex.Message}");
         }
     }
 
@@ -234,7 +235,7 @@ public class Uploader
         foreach (var night in unsent)
         {
             NightRepository.MarkAsSent(night.Id);
-            //Console.WriteLine($"[NIGHT SENT] ID={night.Id} Sensor={night.SensorId}");
+            Log.Information($"[NIGHT SENT] ID={night.Id} Sensor={night.SensorId}");
         }
     }
 }

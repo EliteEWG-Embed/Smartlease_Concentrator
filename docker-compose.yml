@@ -2,6 +2,7 @@ version: "2.1"
 
 volumes:
   shared-database:
+  logs:
 
 services:
 
@@ -33,6 +34,7 @@ services:
 
     volumes:
       - shared-database:/database
+      - logs:/logs
   db-viewer:
     build: ./db-viewer
     container_name: db-viewer
