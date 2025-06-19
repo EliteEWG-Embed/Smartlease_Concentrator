@@ -1,4 +1,6 @@
 using Microsoft.Azure.Devices.Client;
+using System.Net;
+using System.Net.Mail;
 using System.Text;
 using System.Text.Json;
 using Serilog;
@@ -14,7 +16,7 @@ public class AzureClient
         _client = DeviceClient.CreateFromConnectionString(connectionString, TransportType.Mqtt);
     }
 
-    public async Task SendJsonAsync(object payload)
+    public async Task SendJsonAsync(object payload, int retryCount = 5)
     {
         try
         {
@@ -22,7 +24,7 @@ public class AzureClient
             using var message = new Message(Encoding.UTF8.GetBytes(json))
             {
                 ContentType = "application/json",
-                ContentEncoding = "utf-8"
+                ContentEncoding = "utf-8",
             };
 
             await _client.SendEventAsync(message);
@@ -32,14 +34,47 @@ public class AzureClient
         {
             Log.Error($"[AZURE ERROR] {ex.Message}. Retrying...");
             await Task.Delay(2000);
-            try
+
+            if (retryCount <= 0)
             {
-                await _client.SendEventAsync(new Message(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload))));
+                Log.Error("[AZURE RETRY FAILED] No more retries left.");
+                await SendFailureEmailAsync(ex.Message);
+                return;
             }
-            catch (Exception retryEx)
+
+            await SendJsonAsync(payload, --retryCount);
+        }
+    }
+
+    private async Task SendFailureEmailAsync(string errorMessage)
+    {
+        try
+        {
+            //azure smtp
+            var smtpClient = new SmtpClient("outlook.office365.com")
             {
-                Log.Error($"[AZURE RETRY FAILED] {retryEx.Message}");
-            }
+                Port = 587,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential("bot@smartlease.ch", "wqmmjwfxdhmdthyq"),
+                EnableSsl = true,
+            };
+
+            var mail = new MailMessage
+            {
+                From = new MailAddress("bot@smartlease.ch"),
+                Subject = "[SMARTLEASE] Azure Upload Failure",
+                Body = $"Une erreur s'est produite lors de l'envoi à Azure IoT Hub :\n\n{errorMessage}",
+                IsBodyHtml = false,
+            };
+
+            mail.To.Add("johann.werkle@elitebeds.ch");
+
+            await smtpClient.SendMailAsync(mail);
+            Log.Information("[MAIL] Notification envoyée à rapports@smartlease.ch");
+        }
+        catch (Exception mailEx)
+        {
+            Log.Error($"[MAIL ERROR] Impossible d'envoyer l'alerte par e-mail: {mailEx.Message}");
         }
     }
 }

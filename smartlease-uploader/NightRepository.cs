@@ -59,7 +59,13 @@ namespace SmartleaseUploader
             checkCmd.Parameters.AddWithValue("@date", todayDate);
 
             long count = (long)checkCmd.ExecuteScalar();
-
+            if (count > 0)
+            {
+                Log.Information(
+                    $"[NIGHT INSERT] Night already exists for sensor {sensorId} on {todayDate}. Skipping insert."
+                );
+                return;
+            }
             var insertCmd = conn.CreateCommand();
             insertCmd.CommandText =
                 @"

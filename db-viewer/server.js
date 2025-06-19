@@ -77,7 +77,7 @@ app.get('/resend-nights-to-azure', async (req, res) => {
     if (rows.changes === 0) {
       return res.status(404).send("No nights found for the specified date");
     }
-    return res.send(`Nights for ${date} marked as unsent`);
+    return res.status(200).send(`Nights for ${date} marked as unsent`);
   } catch (err) {
     console.error("Resend error:", err.message);
     db.close();
