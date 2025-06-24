@@ -69,12 +69,18 @@ $(document).ready(function () {
 });
 
 
-document.getElementById("download-json").addEventListener("click", () => {
-  window.location.href = "/export-json";
-});
-document.getElementById("night-page").addEventListener("click", function () {
-  window.location.href = "night.html";
-});
-document.getElementById("truncate-frame").addEventListener("click", function () {
-  window.location.href = "/clear-frames";
-});
+function bindClick(id, url) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener("click", () => {
+      window.location.href = url;
+    });
+  }
+}
+
+bindClick("download-night", "/export-night");
+bindClick("download-frame", "/export-frame");
+bindClick("night-page", "night.html");
+bindClick("frame-page", "frame.html");
+bindClick("index-page", "index.html");
+bindClick("truncate-frame", "/clear-frames");

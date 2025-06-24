@@ -2,32 +2,22 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Smartlease - Données Capteurs</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
+  <title>Smartlease</title>
 </head>
 <body>
-  <h1>Smartlease - Données Capteurs</h1>
-  <button id="download-json">Télécharger JSON</button>
-  <!-- button to night page-->
-  <button id="night-page">Renvoyer les nuitées</button>
-  <button id="truncate-frame">Vider la base de données</button>
+  <h1>Smartlease</h1>
 
-  <table id="data-table" class="display" style="width:100%">
-    <thead>
-      <tr>
-        <th>Heure</th>
-        <th>ID Capteur</th>
-        <th>Compteur</th>
-        <th>Mouvement</th>
-        <th>Mouvement2</th>
-        <th>Mouvement3</th>
-        <th>Mouvement4</th>
-        <th>Orientation</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div>  
+    <!-- button to frame page-->
+    <button id="frame-page">Frames</button>
+    <!-- button to night page-->
+    <button id="night-page">Nuitées</button>
+  </div>
 
+  <div>
+    <button id="download-frame">Télécharger JSON des frames</button>
+    <button id="download-night">Télécharger JSON des nuitées</button>
+  </div>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="script.js"></script>

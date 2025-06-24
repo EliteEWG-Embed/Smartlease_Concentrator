@@ -42,8 +42,21 @@ app.get('/clear-frames', (req, res) => {
   }
 });
 
-// Export complet JSON
-app.get('/export-json', (req, res) => {
+// Vider la table Night
+app.get('/clear-night', (req, res) => {
+  try {
+    const db = new Database(DB_PATH);
+    db.prepare("DELETE FROM Night").run();
+    db.close();
+    res.send("Nights cleared");
+  } catch (err) {
+    console.error("Clear error:", err.message);
+    res.status(500).send("Failed to clear nights");
+  }
+});
+
+// Export complet JSON frames
+app.get('/export-frame', (req, res) => {
   try {
     const db = new Database(DB_PATH, { readonly: true });
     const rows = db.prepare("SELECT * FROM Frames ORDER BY time DESC").all();
@@ -52,6 +65,23 @@ app.get('/export-json', (req, res) => {
     const jsonData = JSON.stringify(rows, null, 2);
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename=\"frames.json\"');
+    res.send(jsonData);
+  } catch (err) {
+    console.error("Export error:", err.message);
+    res.status(500).send("Export failed");
+  }
+});
+
+// Export complet JSON night
+app.get('/export-night', (req, res) => {
+  try {
+    const db = new Database(DB_PATH, { readonly: true });
+    const rows = db.prepare("SELECT * FROM Night ORDER BY time DESC").all();
+    db.close();
+
+    const jsonData = JSON.stringify(rows, null, 2);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename=\"nights.json\"');
     res.send(jsonData);
   } catch (err) {
     console.error("Export error:", err.message);
