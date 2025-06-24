@@ -21,13 +21,60 @@ public class Uploader
             ?? throw new Exception("AZURE_IOT_CONNECTION_STRING missing")
     );
 
+    private int HourStart =
+        Environment.GetEnvironmentVariable("HOUR_START") is string hourStartStr
+        && int.TryParse(hourStartStr, out var hourStart)
+            ? hourStart
+            : 14;
+    private int HourEnd =
+        Environment.GetEnvironmentVariable("HOUR_END") is string hourEndStr
+        && int.TryParse(hourEndStr, out var hourEnd)
+            ? hourEnd
+            : 10;
+
+    private int IntervalNightReports =
+        Environment.GetEnvironmentVariable("INTERVAL_NIGHT_REPORTS") is string intervalStr
+        && int.TryParse(intervalStr, out var interval)
+            ? interval
+            : 60; // minutes
+    private int IntervalBilan =
+        Environment.GetEnvironmentVariable("INTERVAL_BILAN") is string bilanStr
+        && int.TryParse(bilanStr, out var bilan)
+            ? bilan
+            : 12; // minutes
+
+    private int PurgeHour =
+        Environment.GetEnvironmentVariable("PURGE_HOUR") is string purgeHourStr
+        && int.TryParse(purgeHourStr, out var purgeHour)
+            ? purgeHour
+            : 3; // hour for daily purge
+
+    private int maxPayloadSize = Environment.GetEnvironmentVariable("MAX_PAYLOAD_SIZE") is string maxSizeStr
+        && int.TryParse(maxSizeStr, out var maxSize)
+            ? maxSize
+            : 4000; // bytes
+    private int SumMovementThreshold =
+        Environment.GetEnvironmentVariable("SUM_MOVEMENT_THRESHOLD") is string thresholdStr
+        && int.TryParse(thresholdStr, out var threshold)
+            ? threshold
+            : 1000; // minimum movement sum to consider night detected
+
+    private int MinFramesCount =
+        Environment.GetEnvironmentVariable("MIN_FRAMES_COUNT") is string minFramesStr
+        && int.TryParse(minFramesStr, out var minFrames)
+            ? minFrames
+            : 12; // minimum frames count to consider night detected
+
     public async Task StartAsync()
     {
         NightRepository.Initialize();
 
-        _nightTimer = CreateIntervalTimer(60, async () => await CalculateAndSendNightReports());
-        _bilanTimer = CreateIntervalTimer(12, async () => await SendSensorBilan());
-        _purgeTimer = CreateDailyTimer(3, 0, async () => await PurgeOldData());
+        _nightTimer = CreateIntervalTimer(
+            IntervalNightReports,
+            async () => await CalculateAndSendNightReports()
+        );
+        _bilanTimer = CreateIntervalTimer(IntervalBilan, async () => await SendSensorBilan());
+        _purgeTimer = CreateDailyTimer(PurgeHour, 0, async () => await PurgeOldData());
 
         Log.Information("Uploader started. Press Ctrl+C to exit.");
         await Task.Delay(-1);
@@ -76,10 +123,12 @@ public class Uploader
                motion,
                orientation
         FROM Frames
-        WHERE time >= datetime('now', '-1 day', 'start of day', '+14 hours')
-          AND time <  datetime('now', 'start of day', '+10 hours')
+        WHERE time >= datetime('now', '-1 day', 'start of day', '+@HourStart hours')
+          AND time <  datetime('now', 'start of day', '+@HourEnd hours')
           AND motion > 0
         ORDER BY sensor_id, time;";
+        cmd.Parameters.AddWithValue("@HourStart", HourStart);
+        cmd.Parameters.AddWithValue("@HourEnd", HourEnd);
 
         var stats =
             new Dictionary<
@@ -111,7 +160,7 @@ public class Uploader
         {
             var (lastTime, frames, motionSum, lastOrientation) = data;
 
-            if (frames >= 12 && motionSum > 1000)
+            if (frames >= MinFramesCount && motionSum > SumMovementThreshold)
             {
                 NightRepository.InsertNight(sensorId, lastOrientation, detected: 1);
             }
@@ -139,7 +188,6 @@ public class Uploader
         using var reader = cmd.ExecuteReader();
 
         var batch = new List<object>();
-        int maxPayloadSize = 4000;
         while (reader.Read())
         {
             var sensorId = reader.GetString(0);
@@ -184,8 +232,10 @@ public class Uploader
             conn.Open();
             var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM Frames WHERE time < datetime('now', '-15 days');";
-            var rows = cmd.ExecuteNonQuery();
-            Log.Information($"[PURGE] {rows} rows deleted.");
+            var rowsFrame = cmd.ExecuteNonQuery();
+            cmd.CommandText = "DELETE FROM Night WHERE time < datetime('now', '-15 days');";
+            var rowsNight = cmd.ExecuteNonQuery();
+            Log.Information($"[PURGE] {rowsFrame + rowsNight} rows deleted.");
         }
         catch (Exception ex)
         {
@@ -199,7 +249,6 @@ public class Uploader
 
         var batch = new List<object>();
         int currentSize = 0;
-        const int maxPayloadSize = 4000;
 
         foreach (var night in unsent)
         {
