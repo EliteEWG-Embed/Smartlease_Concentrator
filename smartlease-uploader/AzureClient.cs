@@ -55,13 +55,13 @@ public class AzureClient
             {
                 Port = 587,
                 UseDefaultCredentials = false,
-                Credentials = new NetworkCredential("bot@smartlease.ch", "wqmmjwfxdhmdthyq"),
+                Credentials = new NetworkCredential("concentrateur@smartlease.ch", "B(252374102030uz"),
                 EnableSsl = true,
             };
 
             var mail = new MailMessage
             {
-                From = new MailAddress("bot@smartlease.ch"),
+                From = new MailAddress("concentrateur@smartlease.ch"),
                 Subject = "[SMARTLEASE] Azure Upload Failure",
                 Body = $"Une erreur s'est produite lors de l'envoi à Azure IoT Hub :\n\n{errorMessage}",
                 IsBodyHtml = false,

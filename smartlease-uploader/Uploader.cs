@@ -116,19 +116,20 @@ public class Uploader
         await conn.OpenAsync();
 
         using var cmd = conn.CreateCommand();
-        cmd.CommandText =
-            @"
-        SELECT sensor_id,
-               time,
-               motion,
-               orientation
-        FROM Frames
-        WHERE time >= datetime('now', '-1 day', 'start of day', '+@HourStart hours')
-          AND time <  datetime('now', 'start of day', '+@HourEnd hours')
-          AND motion > 0
-        ORDER BY sensor_id, time;";
-        cmd.Parameters.AddWithValue("@HourStart", HourStart);
-        cmd.Parameters.AddWithValue("@HourEnd", HourEnd);
+        var start = DateTime.Today.AddDays(-1).AddHours(HourStart);
+        var end = DateTime.Today.AddHours(HourEnd);
+
+        cmd.CommandText = @"
+    SELECT sensor_id, time, motion, orientation
+    FROM   Frames
+    WHERE  time >= @Start
+      AND  time <  @End
+      AND  motion > 0
+    ORDER BY sensor_id, time;";
+
+        cmd.Parameters.AddWithValue("@Start", start.ToString("yyyy-MM-dd HH:mm:ss"));
+        cmd.Parameters.AddWithValue("@End", end.ToString("yyyy-MM-dd HH:mm:ss"));
+
 
         var stats =
             new Dictionary<

@@ -58,10 +58,11 @@ services:
 
   watchdog:
     build: ./watchdog
-    privileged: true
+    privileged: true        
     network_mode: host
     restart: always
-    environment:
-      - TZ=Europe/Paris
     labels:
       io.balena.features.supervisor-api: 1
+      io.balena.features.i2c: 1
+    environment:
+      - TZ=Europe/Paris
