@@ -6,6 +6,26 @@ const app = express();
 const PORT = 80;
 const DB_PATH = "/database/concentrator.db";
 
+
+// Fonction utilitaire : hex vers ID décimal formaté
+function convertSensorName(sensorId) {
+  if (!sensorId || sensorId.length !== 8) return sensorId;
+  try {
+    const byte1 = parseInt(sensorId.slice(0, 2), 16);
+    const byte2 = parseInt(sensorId.slice(2, 4), 16);
+    const byte3 = parseInt(sensorId.slice(4, 6), 16);
+    const byte4 = parseInt(sensorId.slice(6, 8), 16);
+    return (
+      String(byte1).padStart(3, '0') +
+      String(byte2).padStart(3, '0') +
+      String(byte3).padStart(3, '0') +
+      String(byte4).padStart(3, '0')
+    );
+  } catch (e) {
+    return sensorId;
+  }
+}
+
 // Servir les fichiers statiques (HTML, JS, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -62,9 +82,15 @@ app.get('/export-frame', (req, res) => {
     const rows = db.prepare("SELECT * FROM Frames ORDER BY time DESC").all();
     db.close();
 
-    const jsonData = JSON.stringify(rows, null, 2);
+    // Ajout de sensor_id_dec
+    const enhancedRows = rows.map(row => ({
+      ...row,
+      sensor_id_dec: convertSensorName(row.sensor_id),
+    }));
+
+    const jsonData = JSON.stringify(enhancedRows, null, 2);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', 'attachment; filename=\"frames.json\"');
+    res.setHeader('Content-Disposition', 'attachment; filename="frames.json"');
     res.send(jsonData);
   } catch (err) {
     console.error("Export error:", err.message);
