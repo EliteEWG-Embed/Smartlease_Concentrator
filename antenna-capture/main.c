@@ -49,6 +49,13 @@ int parse_and_store(uint8_t *payload, size_t payload_size) {
     snprintf(sensor_id, sizeof(sensor_id), "%02X%02X%02X%02X",
              payload[2], payload[3], payload[4], payload[5]);
 
+    // Check if Sensor ID is valid (should start with 0xA0, 0xE6 or 0xE9)
+    if (sensor_id[0] != 'A' && sensor_id[0] != 'E') {
+        LOG_ERROR("Invalid Sensor ID: %s", sensor_id);
+        return -1;
+    }
+    
+
     // Compteur
     uint8_t counter = payload[6];
 
@@ -121,12 +128,12 @@ int main(int argc, char *argv[]) {
         uint8_t rx_buffer[buffer_size];
         Message received_msg;
         if (sniff_next_message(fd, rx_buffer, buffer_size, &received_msg)) {
-            LOG_INFO("Frame received: ");
+            /*LOG_INFO("Frame received: ");
             for (int i = 0; i < received_msg.payload_size; i++) {
                 //printf("%02X", received_msg.payload[i]);
             }
-            //printf("\n");
-
+            //printf("\n");    */
+            
             
             parse_and_store(received_msg.payload, received_msg.payload_size);
         } else if (errno == EIO) {

@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Créer le dossier de logs s'il n'existe pas
 mkdir -p /logs
 find /logs -name "watchdog.*.log" -mtime +7 -exec rm -f {} \;
 LOG_FILE="/logs/watchdog.$(date +%F).log"
@@ -76,7 +75,7 @@ battery_log() {
 
     if [ "$percent" -lt "$threshold" ]; then
       if [ ! -f "$FLAG_FILE" ]; then
-        send_battery_alert "$threshold"
+        #send_battery_alert "$threshold"
         touch "$FLAG_FILE"
       fi
     else
@@ -87,44 +86,94 @@ battery_log() {
   log_info "[BAT] est. ${percent}% – ${bus_voltage} V – ${current} A – ${power} W"
 }
 
+reset_modem_mmcli() {
+  log_info "[MODEM] Attempting mmcli soft reset"
+  if mmcli -L | grep -q 'Modem'; then
+    MODEM_ID=$(mmcli -L | grep -o '/Modem/[0-9]*' | head -n1 | cut -d'/' -f3)
+    mmcli -m "$MODEM_ID" --disable && sleep 3
+    mmcli -m "$MODEM_ID" --enable && sleep 15
+
+    if curl -s --max-time 10 https://www.google.com > /dev/null; then
+      log_info "[MODEM] mmcli reset successful"
+      return 0
+    else
+      log_error "[MODEM] mmcli reset failed"
+      return 1
+    fi
+  else
+    log_error "[MODEM] No modem found via mmcli"
+    return 1
+  fi
+}
+
+reset_modem_gpio() {
+  GPIO=6  # BCM6 = PWR
+  log_info "[MODEM] Forcing modem power toggle via GPIO${GPIO}"
+
+  echo "$GPIO" > /sys/class/gpio/export || true
+  echo "out" > /sys/class/gpio/gpio$GPIO/direction
+  echo 0 > /sys/class/gpio/gpio$GPIO/value
+  sleep 2
+  echo 1 > /sys/class/gpio/gpio$GPIO/value
+  sleep 15
+
+  if curl -s --max-time 10 https://www.google.com > /dev/null; then
+    log_info "[MODEM] GPIO reset successful"
+    return 0
+  else
+    log_error "[MODEM] GPIO reset failed"
+    return 1
+  fi
+}
+
 MAX_RETRIES=10
-DELAY=30
+DELAY=300
 FAIL_COUNT=0
 SUPERVISOR_URL="${BALENA_SUPERVISOR_ADDRESS}/ping"
 
-log_info "[WATCHDOG] Using supervisor URL: $SUPERVISOR_URL"
+log_info "[WATCHDOG] Starting watchdog"
+log_info "[WATCHDOG] Supervisor URL: $SUPERVISOR_URL"
 
 while true; do
-  RESPONSE=$(curl -s -X GET --header "Content-Type:application/json" "$SUPERVISOR_URL")
+  OK_SUPERVISOR=$(curl -s -X GET --header "Content-Type:application/json" "$SUPERVISOR_URL" || echo "FAIL")
+  OK_NET=false
 
-  if [ "$RESPONSE" = "OK" ]; then
-    if [ "$FAIL_COUNT" -gt 0 ]; then
-      log_info "[WATCHDOG] Supervisor is reachable again"
-    fi
-    FAIL_COUNT=0
+  if [ "$OK_SUPERVISOR" = "OK" ]; then
+    log_info "[WATCHDOG] Supervisor reachable"
   else
+    log_error "[WATCHDOG] Supervisor unreachable"
     FAIL_COUNT=$((FAIL_COUNT + 1))
-    log_error "[WATCHDOG] Device is OFFLINE ($FAIL_COUNT/$MAX_RETRIES)"
   fi
 
-  wget --spider --quiet https://www.google.com
-  if [ "$?" != 0 ]; then
-    FAIL_COUNT=$((FAIL_COUNT + 1))
-    log_error "[WATCHDOG] Internet is OFFLINE ($FAIL_COUNT/$MAX_RETRIES)"
+  if wget --spider --quiet --timeout=10 https://www.google.com; then
+    log_info "[WATCHDOG] Internet OK"
   else
-    if [ "$FAIL_COUNT" -gt 0 ]; then
-      log_info "[WATCHDOG] Internet is reachable again"
-    fi
-    FAIL_COUNT=0
+    log_error "[WATCHDOG] Internet unreachable"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
   fi
 
   if [ "$FAIL_COUNT" -ge "$MAX_RETRIES" ]; then
-    log_error "[WATCHDOG] Offline too long. Triggering reboot"
+    log_error "[WATCHDOG] Reached max failure count ($FAIL_COUNT)"
+
+    # Essayer reset modem (mmcli)
+    if reset_modem_mmcli; then
+      FAIL_COUNT=0
+      continue
+    fi
+
+    # Essayer reset physique (GPIO)
+    if reset_modem_gpio; then
+      FAIL_COUNT=0
+      continue
+    fi
+
+    log_error "[WATCHDOG] All recovery attempts failed, rebooting..."
     curl -X POST --header "Content-Type:application/json" \
       "$BALENA_SUPERVISOR_ADDRESS/v1/reboot?apikey=$BALENA_SUPERVISOR_API_KEY"
     exit 0
   fi
 
   battery_log
+  FAIL_COUNT=0
   sleep $DELAY
 done

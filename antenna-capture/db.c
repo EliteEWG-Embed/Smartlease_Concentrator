@@ -14,6 +14,7 @@ int initialize_database(const char *db_path) {
         sqlite3_close(db);
         return rc;
     }
+    sqlite3_busy_timeout(db, 5000);
 
     // Mode WAL pour les accès concurrents
     sqlite3_exec(db, "PRAGMA journal_mode=WAL;", 0, 0, 0);
@@ -84,6 +85,9 @@ int insert_frame(const char *db_path, const char *timestamp, const char *sensor_
     if (rc != SQLITE_OK) {
         fprintf(stderr, "SQL error during insert: %s\n", err_msg);
         sqlite3_free(err_msg);
+    } else {
+        log_info("Inserted into frame : %s, %s, %d, %d, %d, %d, %d, %d, %s", 
+                 timestamp, sensor_id, counter, motion, motion2, motion3, motion4, orientation, payload_hex);
     }
 
     sqlite3_close(db);

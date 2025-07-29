@@ -1,6 +1,6 @@
 FROM alpine:latest
 
-RUN apk add --no-cache curl bash tzdata i2c-tools bc
+RUN apk add --no-cache curl bash tzdata i2c-tools bc modemmanager wget
 
 ENV TZ=Europe/Paris
 

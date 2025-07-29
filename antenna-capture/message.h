@@ -13,7 +13,7 @@
 #define FLAGS_START_INDEX 2
 #define PAYLOAD_SIZE_START_INDEX 3
 #define PAYLOAD_START_INDEX 5
-#define SNIFF_TIMEOUT_SECONDS 2.0
+#define SNIFF_TIMEOUT_SECONDS 1.0
 
 // Define the start of frame character
 typedef enum

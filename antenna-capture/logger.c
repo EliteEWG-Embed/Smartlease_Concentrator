@@ -11,7 +11,7 @@
 #define MAX_LOG_DAYS 7
 
 static FILE *log_file = NULL;
-int log_console_enabled = 0;
+int log_console_enabled = 1;
 
 
 void cleanup_old_logs() {
