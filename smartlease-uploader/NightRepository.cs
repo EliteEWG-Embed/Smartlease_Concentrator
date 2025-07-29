@@ -45,7 +45,7 @@ namespace SmartleaseUploader
             using var conn = new SqliteConnection($"Data Source={DbPath}");
             conn.Open();
 
-            string todayDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            string todayDate = DateTime.Now.ToString("yyyy-MM-dd");
 
             var checkCmd = conn.CreateCommand();
             checkCmd.CommandText =
@@ -74,7 +74,7 @@ namespace SmartleaseUploader
     ";
             insertCmd.Parameters.AddWithValue(
                 "@time",
-                DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
             );
             insertCmd.Parameters.AddWithValue("@sensor_id", sensorId);
             insertCmd.Parameters.AddWithValue("@orientation", orientation);
