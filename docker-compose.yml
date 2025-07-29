@@ -65,5 +65,8 @@ services:
       io.balena.features.supervisor-api: 1
       io.balena.features.i2c: 1
       io.balena.features.dbus: 1
+    volumes:
+      - /run/dbus:/host/run/dbus
     environment:
       - TZ=Europe/Paris
+      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/host/run/dbus/system_bus_socket
